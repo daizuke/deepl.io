@@ -5,6 +5,15 @@
 			"::1": true
 		}
 	},
+	"smtp": {
+		"enabled": false,
+		"server": null,
+		"port": null,
+		"secure": null,
+		"authentication": false,
+		"username": null,
+		"password": null,
+	},
 	"log": "logs/deeplio.log",
 	"cachePath": "cache/",
 	"repositoriesPath": "repositories/"
