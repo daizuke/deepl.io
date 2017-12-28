@@ -9,12 +9,17 @@ namespace noelbosscom;
  * ------------------------------------------------------------------------------------ */
 
 
-	define( 'BASE', __DIR__ . '/../../' );
-	define( 'REPOS', BASE.'repositories/' );
+	define( 'BASE', realpath(__DIR__ . '/../..') . '/');
+	define( 'REPOS', realpath(BASE . '/repositories/') );
+	// echo BASE; echo REPOS; exit;
+
+	# Load Composer
+	$loader = require_once (__DIR__ . '/../../vendor/autoload.php');
+
 
 	include_once('../incl/Helpers.php');
-    include_once('../incl/IpAddress.php');
-    include_once('../incl/IpRange.php');
+	include_once('../incl/IpAddress.php');
+	include_once('../incl/IpRange.php');
 
 	class Deeplio {
 		private $Helpers;
@@ -85,69 +90,71 @@ namespace noelbosscom;
 
 			$this->security();
 			$this->run();
+
+			$this->mails(true);
 		}
 
 		private function run() {
-		    if ($this->service === 'Bitbucket'){
-		        // Get repository name
-                $scm = $this->data->repository->scm;
-                $fullName = $this->data->repository->full_name;
-                $repo = "$scm@bitbucket.org:$fullName.$scm";
+			if ($this->service === 'Bitbucket'){
+				// Get repository name
+				$scm = $this->data->repository->scm;
+				$fullName = $this->data->repository->full_name;
+				$repo = "$scm@bitbucket.org:$fullName.$scm";
 
-                foreach ($this->data->push->changes as $change) {
-                    $branch = '';
-                    $before = '';
-                    if (is_object($change->old)){
-                        $before = $change->old->target->hash;
-                        $branch = $change->old->name;
-                    }
-                    $after = '';
-                    if (is_object($change->new)){
-                        $after = $change->new->target->hash;
-                        $branch = $change->new->name;
-                    }
-                    
-                    $this->handle($repo, $branch, $before, $after);
-		        }
-            } else {
-                if ($this->service === 'GitHub') {
-                    $repo = $this->data->repository->ssh_url;
-                } else {
-                    $repo = $this->data->repository->git_ssh_url;
-                }
+				foreach ($this->data->push->changes as $change) {
+					$branch = '';
+					$before = '';
+					if (is_object($change->old)){
+						$before = $change->old->target->hash;
+						$branch = $change->old->name;
+					}
+					$after = '';
+					if (is_object($change->new)){
+						$after = $change->new->target->hash;
+						$branch = $change->new->name;
+					}
 
-                $branch = str_replace('refs/heads/','', $this->data->ref);
-                $branch = str_replace('/','-', $branch);
+					$this->handle($repo, $branch, $before, $after);
+				}
+			} else {
+				if ($this->service === 'GitHub') {
+					$repo = $this->data->repository->ssh_url;
+				} else {
+					$repo = $this->data->repository->git_ssh_url;
+				}
 
-                $this->handle($repo, $branch, $this->data->before, $this->data->after);
-            }
-        }
+				$branch = str_replace('refs/heads/','', $this->data->ref);
+				$branch = str_replace('/','-', $branch);
 
-        /**
-         * Handles the deploy of a repository.
-         *
-         * This method will not abort the request since bitbucket payload can contain information about
-         * multiple branches and we need to find the right one.
-         * However, it will end the request if a matching repo/branch is found and the deployment
-         * is successful
-         *
-         * @param $repo string The repo url
-         * @param $branch string Name of the changed branch
-         * @param $before string The hash of the commit before the change
-         * @param $after string The hash of the commit after the change
-         */
+				$this->handle($repo, $branch, $this->data->before, $this->data->after);
+			}
+		}
+
+		/**
+		 * Handles the deploy of a repository.
+		 *
+		 * This method will not abort the request since bitbucket payload can contain information about
+		 * multiple branches and we need to find the right one.
+		 * However, it will end the request if a matching repo/branch is found and the deployment
+		 * is successful
+		 *
+		 * @param $repo string The repo url
+		 * @param $branch string Name of the changed branch
+		 * @param $before string The hash of the commit before the change
+		 * @param $after string The hash of the commit after the change
+		 */
 		private function handle($repo, $branch, $before, $after) {
-		    // Check if there is an old version of the before file.
-            $fileBase = $this->cachePath . DIRECTORY_SEPARATOR . base64_encode($repo . "." .$branch) . ".";
-            $cacheFileBefore = $this->cachePath.'/'.substr($before, -12);
-            if (!is_file($cacheFileBefore)){
-                $cacheFileBefore = $fileBase . substr($before, -12);
-            }
+			// Check if there is an old version of the before file.
+			$fileBase = $this->cachePath . DIRECTORY_SEPARATOR . base64_encode($repo . "." .$branch) . ".";
+			$cacheFileBefore = $this->cachePath.'/'.substr($before, -12);
+			if (!is_file($cacheFileBefore)){
+				$cacheFileBefore = $fileBase . substr($before, -12);
+			}
 
-            // New way for cache files, repo and branch specific.
-            // Just to be sure we don't mess up
-            $this->cacheFile = $fileBase . substr($after, -12);
-            $this->cacheFileBefore = $cacheFileBefore;
+			// New way for cache files, repo and branch specific.
+			// Just to be sure we don't mess up
+			$this->cacheFile = $fileBase . substr($after, -12);
+			$this->cacheFileBefore = $cacheFileBefore;
 
 			$beforeShort = substr($before, 0, 7).'..'.substr($before, -7);
 			$afterShort = substr($after, 0, 7).'..'.substr($after, -7);
@@ -190,7 +197,7 @@ namespace noelbosscom;
 					$this->log('[ERROR] Repository not matching;');
 					$this->log(' - Config: '.$conf->project->repository_ssh_url);
 					$this->log(' - Hook: '.$repo , true);
-                    // abort function
+					// abort function
 					return;
 				}
 
@@ -199,8 +206,8 @@ namespace noelbosscom;
 					$this->log('Branch not configured: Repository not matching;');
 					$this->log(' - Config: refs/heads/'.$conf->project->branch);
 					$this->log(' - Hook: '.$this->data->ref, true);
-	                // abort function
-	                return;
+					// abort function
+					return;
 				}
 
 				if(is_file($path.'.script.php')){
@@ -234,19 +241,19 @@ namespace noelbosscom;
 			}
 		}
 
-        /**
-         * Checks if the request is allowed.
-         *
-         * Sends the following HTTP Status Codes:
-         *
-         * 500 Internal Server Error
-         *     - If config.json is broken of missing
-         *
-         * 403 Forbidden
-         *     - If the security token is missing
-         *     - If the security token is not correct
-         *     - If the IP is not allowed
-         */
+		/**
+		 * Checks if the request is allowed.
+		 *
+		 * Sends the following HTTP Status Codes:
+		 *
+		 * 500 Internal Server Error
+		 *     - If config.json is broken of missing
+		 *
+		 * 403 Forbidden
+		 *     - If the security token is missing
+		 *     - If the security token is not correct
+		 *     - If the IP is not allowed
+		 */
 		private function security(){
 			$conf = $this->config;
 
@@ -276,14 +283,14 @@ namespace noelbosscom;
 				} else {
 					$ips = (array) $conf->security->allowedIps;
 					$ipAllowed = false;
-                    foreach ($ips as $ip => $allowed) {
-                        if ($allowed){
-                            $allowedIp = new IpRange($ip);
-                            if ($allowedIp->contains($this->ip)){
-                                $ipAllowed = true;
-                                break;
-                            }
-                        }
+					foreach ($ips as $ip => $allowed) {
+						if ($allowed){
+							$allowedIp = new IpRange($ip);
+							if ($allowedIp->contains($this->ip)){
+								$ipAllowed = true;
+								break;
+							}
+						}
 					}
 					if (!$ipAllowed){
 						$this->log('[ERROR] IP not allowed: '. (string)$this->ip, true, 403);
@@ -292,34 +299,34 @@ namespace noelbosscom;
 			} else if(strlen($conf->security->allowedIps) < 3){
 				$this->log('Warning: Please configure allowed IPs');
 			} else {
-			    $allowedIp = new IpRange($conf->security->allowedIps);
+				$allowedIp = new IpRange($conf->security->allowedIps);
 				if ( $allowedIp->contains($this->ip)){
 					$this->log('[ERROR] IP not allowed: '. (string)$this->ip, true, 403);
 				}
 			}
 		}
 
-        private function getService(){
-            $userAgent = $_SERVER['HTTP_USER_AGENT'];
-            if ((strpos($userAgent, 'GitHub') !== false)) {
-                return 'GitHub';
-            }
-            if ((strpos($userAgent, 'Bitbucket') !== false)) {
-                return 'Bitbucket';
-            }
-            // TODO: make sure it is really from GitLab
-            return 'GitLab';
-        }
+		private function getService(){
+			$userAgent = $_SERVER['HTTP_USER_AGENT'];
+			if ((strpos($userAgent, 'GitHub') !== false)) {
+				return 'GitHub';
+			}
+			if ((strpos($userAgent, 'Bitbucket') !== false)) {
+				return 'Bitbucket';
+			}
+			// TODO: make sure it is really from GitLab
+			return 'GitLab';
+		}
 
 		private function success(){
 			$this->log('[STATUS] SUCCESS – Deployment finished.');
 			if($this->cachePath){
-			    if ($this->cacheFileBefore){
-                    if(is_file($this->cacheFileBefore)) unlink($this->cacheFileBefore);
-                }
-                if ($this->cacheFile) {
-                    file_put_contents($this->cacheFile, "");
-                }
+				if ($this->cacheFileBefore){
+					if(is_file($this->cacheFileBefore)) unlink($this->cacheFileBefore);
+				}
+				if ($this->cacheFile) {
+					file_put_contents($this->cacheFile, "");
+				}
 			}
 			$this->mails(true);
 			die();
@@ -357,12 +364,18 @@ namespace noelbosscom;
 				$message = str_replace('{{'.$key.'}}', $value, $message);
 			}
 
-			$headers = "From: Deepl.io <" . strip_tags('noreply@deepl.io') . "> \r\n";
-			//$headers .= "Reply-To: ". $to . "\r\n";
-			$headers .= "MIME-Version: 1.0\r\n";
-			$headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+			// $headers = "From: Deepl.io <" . strip_tags('noreply@deepl.io') . "> \r\n";
+			// //$headers .= "Reply-To: ". $to . "\r\n";
+			// $headers .= "MIME-Version: 1.0\r\n";
+			// $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
 
-			mail($to, $subject, $message, $headers);
+			// mail($to, $subject, $message, $headers);
+
+			$return = $this->Helpers->sendMail($to, $subject, $message, $this->config);
+			if ($return && isset($return['error'])) {
+				$this->log('[ERROR] Message could not be sent.');
+				$this->log(' - Mailer Error: ' . $return['error']);
+			}
 		}
 
 		private function log($msg, $sendMails = false, $statusCode = false){
@@ -383,9 +396,9 @@ namespace noelbosscom;
 				$this->mails();
 			}
 			if ($statusCode) {
-                http_response_code($statusCode);
-                die();
-            }
+				http_response_code($statusCode);
+				die();
+			}
 		}
 	}
 
