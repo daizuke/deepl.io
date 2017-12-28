@@ -90,8 +90,6 @@ namespace noelbosscom;
 
 			$this->security();
 			$this->run();
-
-			$this->mails(true);
 		}
 
 		private function run() {
