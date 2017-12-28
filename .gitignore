@@ -12,3 +12,6 @@ backups/*
 cache/*
 node_modules
 assets/original
+
+/composer.lock
+/vendor
