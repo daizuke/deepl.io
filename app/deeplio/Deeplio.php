@@ -10,8 +10,7 @@ namespace noelbosscom;
 
 
 	define( 'BASE', realpath(__DIR__ . '/../..') . '/');
-	define( 'REPOS', realpath(BASE . '/repositories/') );
-	// echo BASE; echo REPOS; exit;
+	define( 'REPOS', BASE . 'repositories/' );
 
 	# Load Composer
 	$loader = require_once (__DIR__ . '/../../vendor/autoload.php');
@@ -143,11 +142,12 @@ namespace noelbosscom;
 		 */
 		private function handle($repo, $branch, $before, $after) {
 			// Check if there is an old version of the before file.
-			$fileBase = $this->cachePath . DIRECTORY_SEPARATOR . base64_encode($repo . "." .$branch) . ".";
-			$cacheFileBefore = $this->cachePath.'/'.substr($before, -12);
+			$fileBase = realpath($this->cachePath) . '/' . base64_encode($repo . "." . $branch) . ".";
+			$cacheFileBefore = realpath($this->cachePath) . '/' . substr($before, -12);
 			if (!is_file($cacheFileBefore)){
 				$cacheFileBefore = $fileBase . substr($before, -12);
 			}
+
 
 			// New way for cache files, repo and branch specific.
 			// Just to be sure we don't mess up
@@ -157,7 +157,7 @@ namespace noelbosscom;
 			$beforeShort = substr($before, 0, 7).'..'.substr($before, -7);
 			$afterShort = substr($after, 0, 7).'..'.substr($after, -7);
 
-			$this->log('[NOTE] New push from '.$this->service.":\n  - ".$repo."\n  - From $beforeShort\n  - To $afterShort");
+			$this->log('[NOTE] New push from '.$this->service.":\n  - ".$repo."\n  - From ".$beforeShort."\n  - To ".$afterShort);
 
 
 			$path = $this->repositoriesPath.basename($repo).'/'.$branch;
@@ -170,7 +170,8 @@ namespace noelbosscom;
 			}
 			else if(is_file($path.'.config.json')){
 
-				$this->log('[NOTE] Cache File does not exist '.$this->cacheFile.' . Start Deploying:');
+				$this->log('[NOTE] Cache File does not exist '.$this->cacheFile.'');
+				$this->log('[NOTE] Start Deploying:');
 
 				try {
 					$conf = json_decode( file_get_contents( $path.'.config.json' ) );
